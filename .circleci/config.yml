@@ -1,41 +1,44 @@
-# This config was automatically generated from your source code
-# Stacks detected: deps:node:.
 version: 2.1
-orbs:
-  node: circleci/node@5
 jobs:
-  build-node:
-    # Build node project
-    executor: node/default
+  build-and-test:
+    macos:
+      xcode: 16.4.0
+    environment:
+      FL_OUTPUT_DIR: output
+      FASTLANE_LANE: test
     steps:
       - checkout
-      - node/install-packages:
-          pkg-manager: npm
+      - run: bundle install
       - run:
-          command: npm run build
-      - run:
-          name: Create the ~/artifacts directory if it doesn't exist
-          command: mkdir -p ~/artifacts
-      # Copy output to artifacts dir
-      - run:
-          name: Copy artifacts
-          command: cp -R build dist public .output .next .docusaurus ~/artifacts 2>/dev/null || true
+          name: Fastlane
+          command: bundle exec fastlane $FASTLANE_LANE
       - store_artifacts:
-          path: ~/artifacts
-          destination: node-build
-  deploy:
-    # This is an example deploy job, not actually used by the workflow
-    docker:
-      - image: cimg/base:stable
+          path: output
+      - store_test_results:
+          path: output/scan
+
+  adhoc:
+    macos:
+      xcode: 16.4.0
+    environment:
+      FL_OUTPUT_DIR: output
+      FASTLANE_LANE: adhoc
     steps:
-      # Replace this with steps to deploy to users
+      - checkout
+      - run: bundle install
       - run:
-          name: deploy
-          command: '#e.g. ./deploy.sh'
+          name: Fastlane
+          command: bundle exec fastlane $FASTLANE_LANE
+      - store_artifacts:
+          path: output
+
 workflows:
-  build:
+  build-test-adhoc:
     jobs:
-      - build-node
-    # - deploy:
-    #     requires:
-    #       - build-node
+      - build-and-test
+      - adhoc:
+          filters:
+            branches:
+              only: development
+          requires:
+            - build-and-test
